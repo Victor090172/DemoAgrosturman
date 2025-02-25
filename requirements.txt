@@ -2,8 +2,6 @@ streamlit
 pandas
 pydeck
 numpy
-urllib
-time
 psycopg2
 httpx
 datetime
