@@ -1,8 +1,8 @@
-streamlit
-pandas
-pydeck
-numpy
-psycopg2
-httpx
-datetime
-sqlalchemy
+streamlit==1.42.2
+pandas==2.2.3
+pydeck==0.9.1
+numpy==1.26.4
+psycopg2==2.9.10
+httpx==0.28.0
+datetime==5.5
+sqlalchemy==2.0.38
