@@ -1,6 +1,10 @@
 streamlit
 pandas
+pydeck
 numpy
-ydata-profiling
-streamlit-pandas-profiling
-Jinja2
+urllib
+time
+psycopg2
+httpx
+datetime
+sqlalchemy
