@@ -6,4 +6,4 @@ psycopg2==2.9.10
 httpx==0.28.0
 datetime==5.5
 sqlalchemy==2.0.38
-pydeck==0.9.1
+altair==5.5.0
