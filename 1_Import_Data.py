@@ -10,6 +10,7 @@ import pandas as pd
 import psycopg2
 import httpx
 import datetime
+import time
 #import altair as alt
 #from sqlalchemy import create_engine
 
@@ -188,8 +189,24 @@ if syslist == 'Форт Монитор':
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
         if st.sidebar.button("Импорт данных", type="primary"):
+            status_text = st.sidebar.empty()
+            progress_bar = st.sidebar.progress(0)
+            status_text.text("Формируем запрос к " + syslist)
+            time.sleep(0.05)
             df_objects = loadobjectlist(id_company)
+            progress_bar.progress(10)
             dict = df_objects['id'].to_string(index=False).split('\n')
             objects =";".join(str(element) for element in dict)
+            status_text.text("Читаем данные из " + syslist)
             df_stst = loadobjectsstst(objects, d, now)
+            progress_bar.progress(20)
+            status_text.text("Данные считаны успешно")
+            time.sleep(0.05)
+            status_text.text("Начинаем очистку данных")
+            drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
+            progress_bar.progress(30)
+            time.sleep(0.05)
+            df_stst.drop(drop_row_index, inplace=True)
+            progress_bar.progress(40)
+            time.sleep(0.05)
             st.write(" ### Список объектов", df_stst)
