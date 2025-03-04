@@ -6,6 +6,8 @@ Created on Tue Feb 25 11:42:58 2025
 """
 import streamlit as st
 
+st.logo("images/Агропилот.png")
+
 pages = {
     "Демостенд": [
         st.Page("about.py", title="О проекте"),
