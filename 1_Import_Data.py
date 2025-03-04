@@ -10,12 +10,15 @@ import pandas as pd
 import psycopg2
 import httpx
 import datetime
-from sqlalchemy import create_engine
+#import altair as alt
+#from sqlalchemy import create_engine
 
 url = 'https://glonassagro.com/'
 username = 'rvl_testapi'
 password = 'rvltestapi2024'
 API = 'api/integration/v1/'
+method = 'connect'
+headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
 data = {'login' : username,
         'password' : password,
         'lang' : 'ru-ru',
@@ -78,7 +81,7 @@ def parce_fort_json2(data):
 
 # Считываем по API список компаний из Форта
 @st.cache_data
-def loaddata():
+def loadcompanylist():
     method = 'connect'
     headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
     client = httpx.Client()
@@ -91,6 +94,51 @@ def loaddata():
     method = 'disconnect'
     response = client.get(url+API+method, timeout=1000)
     return df
+
+#Запрашиваем список объектов компании
+@st.cache_data
+def loadobjectlist(id_company):
+    method = 'connect'
+    headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
+    client = httpx.Client()
+    response = client.get(url+API+method, timeout=1000, headers=headers, params=data)
+    sessionid = response.headers['SessionId']
+    headers = {'SessionId':sessionid}
+    path = 'getobjectslist'
+    query = {'companyId': id_company}
+    resp = client.get(url+API+path, headers=headers, params=query)
+    df = pd.DataFrame.from_dict(resp.json()['objects'])
+    method = 'disconnect'
+    response = client.get(url+API+method, timeout=1000)
+    return df
+
+#Запрашиваем статистику по объектам за выбранный период
+@st.cache_data
+def loadobjectsstst(objects_list, start_date, stop_date):
+    objects =";".join(str(element) for element in objects_list)
+    method = 'connect'
+    headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
+    params = 'dist;run_time;stop_time;idle_time;max_speed;avg_speed;motohours;start_move_time;stop_move_time;all_fuel;run_fuel;\
+            idle_fuel;start_fuel_level;stop_fuel_level;fuelings;drains'
+    path = 'getobjectsreport'
+    client = httpx.Client()
+    response = client.get(url+API+method, timeout=1000, headers=headers, params=data)
+    sessionid = response.headers['SessionId']
+    headers = {'SessionId':sessionid,
+          'Content-Type' : 'application/json'}
+    query = {'date_from': start_date,
+        'date_to': stop_date,
+        'objuids': objects,
+        'split':'day',
+        'param': params}
+    resp = client.get(url+API+path, timeout=5000, headers=headers, params=query)
+    obj_dict = resp.json()
+    df = parce_fort_json2(obj_dict)
+    method = 'disconnect'
+    response = client.get(url+API+method, timeout=1000)
+    return df
+    
+
 #Заправшиваем перечень систем
 @st.cache_data
 def load_table_system():
@@ -122,11 +170,13 @@ if syslist != None:
 #Если выбран Форт
 if syslist == 'Форт Монитор':
 #считываем и выводим список компаний
-    df = loaddata()
+    df_company = loadcompanylist()
     CompanyList = st.selectbox(
        'Выберите компанию (данные загружены по API из системы Форт Монитор):',
-        df['name'].unique())
+        df_company['name'].unique())
     'Вы выбрали: ', CompanyList
+    id_company = df_company.loc[df_company['name'] == CompanyList]['id'].item()
+    st.write("ID in Fort: ", id_company)
  #Предлагаем заполнить название и адрес
     if st.checkbox('Добавить полное наимнование компании (рекомендуется)'):
         fullname = st.text_input('Введите полное наименование компании (будет записано в БД)')
@@ -137,4 +187,9 @@ if syslist == 'Форт Монитор':
     now = datetime.datetime.now().date()
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
-        st.button("Импорт данных", type="primary")
+        if st.sidebar.button("Импорт данных", type="primary"):
+            df_objects = loadobjectlist(id_company)
+            dict = df_objects['id'].to_string(index=False).split('\n')
+            objects =";".join(str(element) for element in dict)
+            df_stst = loadobjectsstst(objects, d, now)
+            st.write(" ### Список объектов", df_stst)
