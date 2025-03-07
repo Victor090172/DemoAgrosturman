@@ -26,6 +26,50 @@ data = {'login' : username,
         'timezone' : '0'}
 
 @st.cache_data
+def return_type (obj_name):
+    import re
+    #1
+    passenger = ['geely', 'dokker', 'karoq', 'octavia', 'logan', 'toyota', 'mercedes', 'duster', 'renault', 'гранта', 'уаз', 'niva', \
+                 'chevrolet', 'lada', 'нива', 'sandero', 'лада', 'дастер', 'accent', 'chery', 'tiggo', 'калина', \
+                'патриот', 'ваз']
+    #2
+    cargo = ['зил', 'next', 'саз', 'камаз', 'ммз',  'газ']
+    #3
+    bus = ['travel', 'transit']
+    #4
+    tractors = ['atles', '8335r', '770', '8430', '8rx', '9420', 'мтз', '82.1', 'кировец', 'yto', 'jcb', 'manitou', 'рсм', '9110r', \
+               '9410', 'T8040', 'dieci', 'gehl', '8310r']
+    #5
+    sprayers = ['туман', 'барс']
+    #6
+    harvesters = ['tucano', 's760', '760', 'acros', 'акрос', 'торум', 'комбайн', 'cs6090', 'across', 'torum']
+    #7
+    special = ['scorpion', 'атз', 'jic','бульдозер', 'кран']
+    #8
+    equipment = ['сеялка']
+    res = 0
+    obj_name = str.lower(obj_name)
+    new_s = re.sub(r"[_()]", " ", obj_name)
+    if set(passenger) & set(new_s.split()):
+        res = 1
+    elif set(cargo) & set(new_s.split()):
+        res = 2
+    elif set(bus) & set(new_s.split()):
+        res = 3
+    elif set(tractors) & set(new_s.split()):
+        res = 4
+    elif set(sprayers) & set(new_s.split()):
+        res = 5
+    elif set(harvesters) & set(new_s.split()):
+        res = 6
+    elif set(special) & set(new_s.split()):
+        res = 7
+    elif set(equipment) & set(new_s.split()):
+        res = 8
+    else: res = 9
+    return res
+
+@st.cache_data
 def parce_fort_json2(data):
     # Создание пустого списка для хранения преобразованных данных
     flattened_data = []
@@ -202,11 +246,46 @@ if syslist == 'Форт Монитор':
             progress_bar.progress(20)
             status_text.text("Данные считаны успешно")
             time.sleep(0.05)
-            status_text.text("Начинаем очистку данных")
-            drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
+            status_text.text("Производим очистку данных")
+            df_objects.rename(columns={'id':'id_company', 'name':'object_name','IMEI':'imei', 
+                                       'lastData':'last_date', 'direction':'reg_number'}, inplace=True)
+            df_objects.drop(['groupId', 'icon', 'rotateIcon', 'iconHeight', 'iconWidth', 'lat', 'lon', 'move'], axis=1, inplace=True)
+ #Пока так, потом переделать на ID компании в БД
+            df_objects['id_company'] = id_company
             progress_bar.progress(30)
             time.sleep(0.05)
-            df_stst.drop(drop_row_index, inplace=True)
-            progress_bar.progress(40)
+            df_objects['id_sys'] = sysnum
+            progress_bar.progress(35)
             time.sleep(0.05)
-            st.write(" ### Список объектов", df_stst)
+#Определяем типы техники по названию
+            df_objects['id_type'] = df_objects.apply(lambda x: return_type(x['object_name']), axis=1)
+            df_objects['reg_number'] = ''
+            progress_bar.progress(45)
+            time.sleep(0.05)
+#Обрабатываем информацию по параметрам объектов
+            drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
+            progress_bar.progress(50)
+            time.sleep(0.05)
+            df_stst.drop(drop_row_index, inplace=True)
+            progress_bar.progress(60)
+            time.sleep(0.05)
+            df_stst['start_move_time'] = df_stst['start_move_time'].fillna(df_stst['begin'])
+            df_stst['stop_move_time'] = df_stst['stop_move_time'].fillna(df_stst['end'])
+            progress_bar.progress(70)
+            time.sleep(0.05)
+            df_stst[['start_move_time', 'stop_move_time']].fillna(df_stst[['begin', 'end']], inplace=True)
+            df_stst.fillna(0, inplace=True)
+            progress_bar.progress(80)
+            time.sleep(0.05)
+            df_stst['begin'] = pd.to_datetime(df_stst['begin'], format='%Y-%m-%d %H:%M:%S')
+            df_stst['end'] = pd.to_datetime(df_stst['end'], format='%Y-%m-%d %H:%M:%S')
+            df_stst['start_move_time'] = pd.to_datetime(df_stst['start_move_time'], format='%Y-%m-%d %H:%M:%S')
+            df_stst['stop_move_time'] = pd.to_datetime(df_stst['stop_move_time'], format='%Y-%m-%d %H:%M:%S')
+            progress_bar.progress(90)
+            time.sleep(0.05)
+            df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
+            df_stst.drop(['obj_name', 'isTotal', 'name'], axis=1, inplace=True)
+            progress_bar.progress(100)
+            st.write(" ### Список объектов", df_objects)
+            
+            st.write(" ### Список параметров объектов", df_stst)
