@@ -196,6 +196,26 @@ def load_table_system():
         dat = pd.read_sql_query(sql, conn)
     return dat
 
+@st.cache_data
+def company_exists(table_str):
+    conn = psycopg2.connect(
+                dbname="postgres",
+                user="postgres",
+                password="AgroPilot2025",
+                host="82.142.178.174",
+                port="5432"
+                )
+    exists = False
+    try:
+        cur = conn.cursor()
+        cur.execute("select exists(select * from telesystems where system_name='" + table_str + "')")
+        exists = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+    except psycopg2.Error as e:
+        print (e)
+    return exists
+
 #Создаем боковое меню
 st.set_page_config(page_title="Импорт данных", page_icon="📈")
 st.markdown("# Импорт данных")
@@ -219,17 +239,22 @@ if syslist == 'Форт Монитор':
     CompanyList = st.selectbox(
        'Выберите компанию (данные загружены по API из системы Форт Монитор):',
         df_company['name'].unique())
-    'Вы выбрали: ', CompanyList
-    id_company = df_company.loc[df_company['name'] == CompanyList]['id'].item()
-    st.write("ID in Fort: ", id_company)
+    if company_exists(CompanyList):
+        'Данная компания уже заведена в базу данных'
+    else: 
+        'Вы выбрали: ', CompanyList
+        id_company = df_company.loc[df_company['name'] == CompanyList]['id'].item()
+        st.write("ID in Fort: ", id_company)
  #Предлагаем заполнить название и адрес
-    if st.checkbox('Добавить полное наимнование компании (рекомендуется)'):
-        fullname = st.text_input('Введите полное наименование компании (будет записано в БД)')
-    if st.checkbox('Добавить адрес компании (рекомендуется)'):
-        adrcompany = st.text_input('Введите адрес компании (понадобится в дальнейшем для отображения на карте)')
+        longname = st.checkbox('Добавить полное наимнование компании (рекомендуется)')
+        companyaddress = st.checkbox('Добавить адрес компании (рекомендуется)')
+        if longname:
+            fullname = st.text_input('Введите полное наименование компании (будет записано в БД)')
+        if companyaddress:
+            adrcompany = st.text_input('Введите адрес компании (понадобится в дальнейшем для отображения на карте)')
 #Предлагаем выбрать дату скачивания  
-    d = st.date_input("Введите дату с которой начнется импорт данных:", value=None)
-    now = datetime.datetime.now().date()
+        d = st.date_input("Введите дату с которой начнется импорт данных:", value=None)
+        now = datetime.datetime.now().date()
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
         if st.sidebar.button("Импорт данных", type="primary"):
@@ -286,6 +311,14 @@ if syslist == 'Форт Монитор':
             df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
             df_stst.drop(['obj_name', 'isTotal', 'name'], axis=1, inplace=True)
             progress_bar.progress(100)
+            st.write(" ### Информация по компании")
+            st.write("Колоткое название: ", CompanyList)
+            if longname:
+                st.write("Полное наименование название: ", fullname)
+            if companyaddress:
+                st.write("Адресс: ", adrcompany)
+            st.write("ID системы в базе: ", sysnum)
             st.write(" ### Список объектов", df_objects)
             
             st.write(" ### Список параметров объектов", df_stst)
+            
