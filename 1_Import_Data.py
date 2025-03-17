@@ -11,6 +11,8 @@ import psycopg2
 import httpx
 import datetime
 import time
+from io import StringIO
+from dateutil.relativedelta import relativedelta
 #import altair as alt
 #from sqlalchemy import create_engine
 
@@ -25,6 +27,13 @@ data = {'login' : username,
         'lang' : 'ru-ru',
         'timezone' : '0'}
 
+#Возвращает число месяцев между датами
+@st.cache_data
+def diff_month(d1, d2):
+    return (d1.year - d2.year) * 12 + d1.month - d2.month
+
+
+#Определяет тип объекта
 @st.cache_data
 def return_type (obj_name):
     import re
@@ -195,9 +204,34 @@ def load_table_system():
         sql = "SELECT * FROM telesystems;"
         dat = pd.read_sql_query(sql, conn)
     return dat
-
+#Проверка на наличие компании в базе по имени
 @st.cache_data
 def company_exists(table_str):
+    conn = psycopg2.connect(
+                dbname="postgres",
+                user="postgres",
+                password="AgroPilot2025",
+                host="82.142.178.174",
+                port="5432"
+                )
+    exists = 0
+    try:
+        cur = conn.cursor()
+        cur.execute("select id_company from company where short_name= '" + table_str+"';")
+        exists = cur.fetchone()
+        cur.close()
+        conn.close()
+        if exists != None:
+            exists = exists[0]
+        else:
+            exists = 0
+    except psycopg2.Error as e:
+        print (e)
+    return exists
+
+#Добавление компании в базу
+@st.cache_data
+def insert_company(short_name, long_name, address, id_system):
     conn = psycopg2.connect(
                 dbname="postgres",
                 user="postgres",
@@ -208,7 +242,29 @@ def company_exists(table_str):
     exists = False
     try:
         cur = conn.cursor()
-        cur.execute("select exists(select * from telesystems where system_name='" + table_str + "')")
+        cur.execute("INSERT INTO company (short_name, full_name, address, sys_id) VALUES (%s, %s, %s, %s);", \
+                    (short_name, long_name, address, id_system))
+        conn.commit()
+        exists = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+    return exists
+#Проверка на наличие объектов в БД
+@st.cache_data
+def objects_exists(id_company):
+    conn = psycopg2.connect(
+                dbname="postgres",
+                user="postgres",
+                password="AgroPilot2025",
+                host="82.142.178.174",
+                port="5432"
+                )
+    exists = False
+    id_company = str(id_company)
+    try:
+        cur = conn.cursor()
+        cur.execute("select exists(select * from objects where id_company=" + id_company + ");")
         exists = cur.fetchone()[0]
         cur.close()
         conn.close()
@@ -216,6 +272,117 @@ def company_exists(table_str):
         print (e)
     return exists
 
+#Вставка объектов в таблицу БД
+@st.cache_data
+def objects_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY objects (
+                    id_company, 
+                    id_sys, 
+                    object_name, 
+                    id_model, 
+                    id_type, 
+                    reg_number, 
+                    imei,
+                    status, 
+                    last_date 
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag
+#Возвращает ID объектов в БД
+@st.cache_data
+def objects_return(id_company):
+    conn = psycopg2.connect(
+                dbname="postgres",
+                user="postgres",
+                password="AgroPilot2025",
+                host="82.142.178.174",
+                port="5432"
+                )
+    id_company = str(id_company)
+    try:
+        cur = conn.cursor()
+        sql = "select * from objects where id_company= " + id_company+";"
+        dat = pd.read_sql_query(sql, conn)
+        cur.close()
+        conn.close()
+    except psycopg2.Error as e:
+        print (e)
+    return dat
+
+#Вставка параметров объектов в БД
+@st.cache_data
+def objects_param_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY object_statistic (
+                    id_object, 
+                    period_begin, 
+                    period_end, 
+                    dist, 
+                    run_time, 
+                    stop_time, 
+                    idle_time,
+                    max_speed, 
+                    avg_speed,
+                    motohours,
+                    start_move_time,
+                    stop_move_time,
+                    all_fuel,
+                    run_fuel,
+                    idle_fuel,
+                    start_fuel_level,
+                    stop_fuel_level,
+                    fuelings,
+                    drains,
+                    id_driver
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag    
+    
 #Создаем боковое меню
 st.set_page_config(page_title="Импорт данных", page_icon="📈")
 st.markdown("# Импорт данных")
@@ -239,8 +406,11 @@ if syslist == 'Форт Монитор':
     CompanyList = st.selectbox(
        'Выберите компанию (данные загружены по API из системы Форт Монитор):',
         df_company['name'].unique())
-    if company_exists(CompanyList):
+    comp_id = company_exists(CompanyList)
+    if comp_id != 0:
         'Данная компания уже заведена в базу данных'
+        st.write("Номер компании в базе: ", comp_id)
+        id_company = df_company.loc[df_company['name'] == CompanyList]['id'].item()
     else: 
         'Вы выбрали: ', CompanyList
         id_company = df_company.loc[df_company['name'] == CompanyList]['id'].item()
@@ -253,72 +423,150 @@ if syslist == 'Форт Монитор':
         if companyaddress:
             adrcompany = st.text_input('Введите адрес компании (понадобится в дальнейшем для отображения на карте)')
 #Предлагаем выбрать дату скачивания  
-        d = st.date_input("Введите дату с которой начнется импорт данных:", value=None)
-        now = datetime.datetime.now().date()
+    d = st.date_input("Введите дату с которой начнется импорт данных:", value=None)
+    now = datetime.datetime.now().date()
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
         if st.sidebar.button("Импорт данных", type="primary"):
             status_text = st.sidebar.empty()
             progress_bar = st.sidebar.progress(0)
+#Вносим компанию в БД если ее еще там нет
+            if comp_id == 0:
+                if insert_company(CompanyList, fullname, adrcompany, sysnum):
+                    progress_bar.progress(5)
+                    status_text.text("Записываем в базу параметры компании")
+                    time.sleep(0.05)
+                else:
+                    status_text.text("Ошибка записи")
+                    time.sleep(0.05)
+            progress_bar.progress(5)
+            comp_id = company_exists(CompanyList)
+            progress_bar.progress(10)
+            status_text.text("Запись прошла успешно, ID компании: %comp_id%%" % comp_id)
+            time.sleep(0.05)
+            progress_bar.progress(15)
             status_text.text("Формируем запрос к " + syslist)
             time.sleep(0.05)
-            df_objects = loadobjectlist(id_company)
-            progress_bar.progress(10)
-            dict = df_objects['id'].to_string(index=False).split('\n')
-            objects =";".join(str(element) for element in dict)
-            status_text.text("Читаем данные из " + syslist)
-            df_stst = loadobjectsstst(objects, d, now)
+#Проверяем наличие объектов в БД 
+            status_text.text("Проверяем наличие объектов в базе")
             progress_bar.progress(20)
-            status_text.text("Данные считаны успешно")
             time.sleep(0.05)
-            status_text.text("Производим очистку данных")
-            df_objects.rename(columns={'id':'id_company', 'name':'object_name','IMEI':'imei', 
-                                       'lastData':'last_date', 'direction':'reg_number'}, inplace=True)
-            df_objects.drop(['groupId', 'icon', 'rotateIcon', 'iconHeight', 'iconWidth', 'lat', 'lon', 'move'], axis=1, inplace=True)
- #Пока так, потом переделать на ID компании в БД
-            df_objects['id_company'] = id_company
-            progress_bar.progress(30)
-            time.sleep(0.05)
-            df_objects['id_sys'] = sysnum
-            progress_bar.progress(35)
-            time.sleep(0.05)
+            if objects_exists(comp_id):
+                progress_bar.progress(100)
+                status_text.text("Объекты уже есть в базе. Импорт данных прерван.")
+                time.sleep(0.05)
+            else:
+                progress_bar.progress(25)
+                status_text.text("Получаем список объектов из системы " + syslist)
+                time.sleep(0.05)
+#Тут делаем выборку объектов их обработку, проверку на наличие в БД и запись в БД            
+                df_objects = loadobjectlist(id_company)
+                status_text.text("Список объектов получен")
+                time.sleep(0.05)
+                progress_bar.progress(30)
+                dict_o = df_objects['id'].to_string(index=False).split('\n')
+#                objects =";".join(str(element) for element in dict)
+                status_text.text("Проводим очистку данных")
+                time.sleep(0.05)
+                df_objects.rename(columns={'id':'id_company', 'name':'object_name','IMEI':'imei', 
+                                           'lastData':'last_date', 'direction':'reg_number'}, inplace=True)
+                df_objects.drop(['groupId', 'icon', 'rotateIcon', 'iconHeight', 'iconWidth', 'lat', 'lon', 'move'], axis=1, inplace=True)            
+    #Подставляем ID компании в БД
+                df_objects['id_company'] = comp_id
+                progress_bar.progress(35)
+                time.sleep(0.05)
+                df_objects['id_sys'] = sysnum
+                df_objects['id_model'] = None
+                progress_bar.progress(40)
+                time.sleep(0.05)            
 #Определяем типы техники по названию
-            df_objects['id_type'] = df_objects.apply(lambda x: return_type(x['object_name']), axis=1)
-            df_objects['reg_number'] = ''
-            progress_bar.progress(45)
-            time.sleep(0.05)
+                df_objects['id_type'] = df_objects.apply(lambda x: return_type(x['object_name']), axis=1)
+                df_objects['reg_number'] = ''
+                progress_bar.progress(45)
+                time.sleep(0.05)
+#Меняем порядок столбцов
+                df_objects = df_objects.reindex(columns=['id_company', 'id_sys', 'object_name', 'id_model', 'id_type',
+                                                         'reg_number', 'imei', 'status', 'last_date'])
+                progress_bar.progress(50)
+                time.sleep(0.05)
+#Получаем данные за выбранный период из Форта      
+                status_text.text("Читаем данные по объектам из " + syslist)
+                d_month = diff_month(now, d)
+                if d_month > 3:
+                    df_stst = pd.DataFrame()
+                    start_date = d
+                    for i in range(1, d_month):
+                        status_text.text("Считываем %i%% -й месяц" % i)
+                        stop_date = d + relativedelta(months=i)
+                        df_m = loadobjectsstst(dict_o, start_date, stop_date)
+                        df_stst = pd.concat([df_stst, df_m], ignore_index=True)
+                        start_date = stop_date + relativedelta(days=1)
+                        progress_bar.progress(50+i)
+                    start_date = stop_date + relativedelta(days=1)
+                    stop_date = now
+                    df_m = loadobjectsstst(dict_o, start_date, stop_date)
+                    df_stst = pd.concat([df_stst, df_m], ignore_index=True)
+                else:
+                    df_stst = loadobjectsstst(dict_o, d, now)
+                progress_bar.progress(60)
+                status_text.text("Данные считаны успешно")
+                time.sleep(0.05)
+                status_text.text("Производим очистку данных")
 #Обрабатываем информацию по параметрам объектов
-            drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
-            progress_bar.progress(50)
-            time.sleep(0.05)
-            df_stst.drop(drop_row_index, inplace=True)
-            progress_bar.progress(60)
-            time.sleep(0.05)
-            df_stst['start_move_time'] = df_stst['start_move_time'].fillna(df_stst['begin'])
-            df_stst['stop_move_time'] = df_stst['stop_move_time'].fillna(df_stst['end'])
-            progress_bar.progress(70)
-            time.sleep(0.05)
-            df_stst[['start_move_time', 'stop_move_time']].fillna(df_stst[['begin', 'end']], inplace=True)
-            df_stst.fillna(0, inplace=True)
-            progress_bar.progress(80)
-            time.sleep(0.05)
-            df_stst['begin'] = pd.to_datetime(df_stst['begin'], format='%Y-%m-%d %H:%M:%S')
-            df_stst['end'] = pd.to_datetime(df_stst['end'], format='%Y-%m-%d %H:%M:%S')
-            df_stst['start_move_time'] = pd.to_datetime(df_stst['start_move_time'], format='%Y-%m-%d %H:%M:%S')
-            df_stst['stop_move_time'] = pd.to_datetime(df_stst['stop_move_time'], format='%Y-%m-%d %H:%M:%S')
-            progress_bar.progress(90)
-            time.sleep(0.05)
-            df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
-            df_stst.drop(['obj_name', 'isTotal', 'name'], axis=1, inplace=True)
-            progress_bar.progress(100)
-            st.write(" ### Информация по компании")
-            st.write("Колоткое название: ", CompanyList)
-            if longname:
-                st.write("Полное наименование название: ", fullname)
-            if companyaddress:
-                st.write("Адресс: ", adrcompany)
-            st.write("ID системы в базе: ", sysnum)
-            st.write(" ### Список объектов", df_objects)
-            
-            st.write(" ### Список параметров объектов", df_stst)
-            
+                drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
+                progress_bar.progress(65)
+                time.sleep(0.05)
+                df_stst.drop(drop_row_index, inplace=True)
+                progress_bar.progress(70)
+                time.sleep(0.05)
+                df_stst['start_move_time'] = df_stst['start_move_time'].fillna(df_stst['begin'])
+                df_stst['stop_move_time'] = df_stst['stop_move_time'].fillna(df_stst['end'])
+                progress_bar.progress(75)
+                time.sleep(0.05)
+                df_stst[['start_move_time', 'stop_move_time']].fillna(df_stst[['begin', 'end']], inplace=True)
+                df_stst.fillna(0, inplace=True)
+                progress_bar.progress(80)
+                time.sleep(0.05)
+                df_stst['begin'] = pd.to_datetime(df_stst['begin'], format='%Y-%m-%d %H:%M:%S')
+                df_stst['end'] = pd.to_datetime(df_stst['end'], format='%Y-%m-%d %H:%M:%S')
+                df_stst['start_move_time'] = pd.to_datetime(df_stst['start_move_time'], format='%Y-%m-%d %H:%M:%S')
+                df_stst['stop_move_time'] = pd.to_datetime(df_stst['stop_move_time'], format='%Y-%m-%d %H:%M:%S')
+                progress_bar.progress(85)
+                time.sleep(0.05)
+                df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
+                df_objects = objects_return(comp_id)
+                df1 = df_objects.drop(columns=['id_company', 'id_sys', 'id_model', 'id_type', 'reg_number', 'imei', 
+                                               'status', 'last_date'])
+                df2 = df1.merge(df_stst, left_on='object_name', right_on='obj_name', how='left')
+                df2.drop(['object_name', 'oid', 'obj_name', 'isTotal', 'name'], axis=1, inplace=True)
+                df2['id_driver']=None
+                progress_bar.progress(88)
+                time.sleep(0.05)
+                st.write(" ### Объекты")
+                df_objects
+                st.write(" ### Параметры")
+                df_stst
+#Функция записывающая объекты в БД           
+                status_text.text("Записываем объекты в БД")
+                time.sleep(0.05)
+                progress_bar.progress(93)
+                if objects_insert(df_objects):
+#Записываем данные по объектам в БД
+                    progress_bar.progress(95)
+                    status_text.text("Записываем данные по объектам в БД")
+                    time.sleep(0.05)
+                    if objects_param_insert(df2):
+                        progress_bar.progress(100)
+                        status_text.text("Импорт данных завершен")
+                        time.sleep(0.05)
+                        st.write(" ### Импорт данных завершен")
+                    else:
+                        progress_bar.progress(100)
+                        status_text.text("Сбой импорта данных")
+                        time.sleep(0.05)
+                        st.write(" ### Сбой импорта данных")
+                else:
+                    progress_bar.progress(100)
+                    status_text.text("Сбой импорта данных")
+                    time.sleep(0.05)
+                    st.write(" ### Сбой импорта данных")
