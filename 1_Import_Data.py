@@ -427,7 +427,7 @@ if syslist == 'Форт Монитор':
     now = datetime.datetime.now().date()
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
-        if st.sidebar.button("Импорт данных", type="primary"):
+        if st.sidebar.button("Импорт данных", type="primary",   disabled=True):
             status_text = st.sidebar.empty()
             progress_bar = st.sidebar.progress(0)
 #Вносим компанию в БД если ее еще там нет
@@ -487,74 +487,75 @@ if syslist == 'Форт Монитор':
 #Меняем порядок столбцов
                 df_objects = df_objects.reindex(columns=['id_company', 'id_sys', 'object_name', 'id_model', 'id_type',
                                                          'reg_number', 'imei', 'status', 'last_date'])
-                progress_bar.progress(50)
-                time.sleep(0.05)
-#Получаем данные за выбранный период из Форта      
-                status_text.text("Читаем данные по объектам из " + syslist)
-                d_month = diff_month(now, d)
-                if d_month > 3:
-                    df_stst = pd.DataFrame()
-                    start_date = d
-                    for i in range(1, d_month):
-                        status_text.text("Считываем %i%% -й месяц" % i)
-                        stop_date = d + relativedelta(months=i)
-                        df_m = loadobjectsstst(dict_o, start_date, stop_date)
-                        df_stst = pd.concat([df_stst, df_m], ignore_index=True)
-                        start_date = stop_date + relativedelta(days=1)
-                        progress_bar.progress(50+i)
-                    start_date = stop_date + relativedelta(days=1)
-                    stop_date = now
-                    df_m = loadobjectsstst(dict_o, start_date, stop_date)
-                    df_stst = pd.concat([df_stst, df_m], ignore_index=True)
-                else:
-                    df_stst = loadobjectsstst(dict_o, d, now)
-                progress_bar.progress(60)
-                status_text.text("Данные считаны успешно")
-                time.sleep(0.05)
-                status_text.text("Производим очистку данных")
-#Обрабатываем информацию по параметрам объектов
-                drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
-                progress_bar.progress(65)
-                time.sleep(0.05)
-                df_stst.drop(drop_row_index, inplace=True)
-                progress_bar.progress(70)
-                time.sleep(0.05)
-                df_stst['start_move_time'] = df_stst['start_move_time'].fillna(df_stst['begin'])
-                df_stst['stop_move_time'] = df_stst['stop_move_time'].fillna(df_stst['end'])
-                progress_bar.progress(75)
-                time.sleep(0.05)
-                df_stst[['start_move_time', 'stop_move_time']].fillna(df_stst[['begin', 'end']], inplace=True)
-                df_stst.fillna(0, inplace=True)
-                progress_bar.progress(80)
-                time.sleep(0.05)
-                df_stst['begin'] = pd.to_datetime(df_stst['begin'], format='%Y-%m-%d %H:%M:%S')
-                df_stst['end'] = pd.to_datetime(df_stst['end'], format='%Y-%m-%d %H:%M:%S')
-                df_stst['start_move_time'] = pd.to_datetime(df_stst['start_move_time'], format='%Y-%m-%d %H:%M:%S')
-                df_stst['stop_move_time'] = pd.to_datetime(df_stst['stop_move_time'], format='%Y-%m-%d %H:%M:%S')
-                progress_bar.progress(85)
-                time.sleep(0.05)
-                df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
-                df_objects = objects_return(comp_id)
-                df1 = df_objects.drop(columns=['id_company', 'id_sys', 'id_model', 'id_type', 'reg_number', 'imei', 
-                                               'status', 'last_date'])
-                df2 = df1.merge(df_stst, left_on='object_name', right_on='obj_name', how='left')
-                df2.drop(['object_name', 'oid', 'obj_name', 'isTotal', 'name'], axis=1, inplace=True)
-                df2['id_driver']=None
-                progress_bar.progress(88)
-                time.sleep(0.05)
-                st.write(" ### Объекты")
-                df_objects
-                st.write(" ### Параметры")
-                df_stst
-#Функция записывающая объекты в БД           
+#Записываем объекты в БД
                 status_text.text("Записываем объекты в БД")
                 time.sleep(0.05)
-                progress_bar.progress(93)
                 if objects_insert(df_objects):
-#Записываем данные по объектам в БД
-                    progress_bar.progress(95)
+                    progress_bar.progress(50)
+                    time.sleep(0.05)
+    #Получаем данные за выбранный период из Форта      
+                    status_text.text("Читаем данные по объектам из " + syslist)
+                    d_month = diff_month(now, d)
+                    if d_month > 3:
+                        df_stst = pd.DataFrame()
+                        start_date = d
+                        for i in range(1, d_month):
+                            status_text.text("Считываем %i%% -й месяц" % i)
+                            stop_date = d + relativedelta(months=i)
+                            df_m = loadobjectsstst(dict_o, start_date, stop_date)
+                            df_stst = pd.concat([df_stst, df_m], ignore_index=True)
+                            start_date = stop_date + relativedelta(days=1)
+                            progress_bar.progress(50+i)
+                        start_date = stop_date + relativedelta(days=1)
+                        stop_date = now
+                        df_m = loadobjectsstst(dict_o, start_date, stop_date)
+                        df_stst = pd.concat([df_stst, df_m], ignore_index=True)
+                    else:
+                        df_stst = loadobjectsstst(dict_o, d, now)
+                    progress_bar.progress(60)
+                    status_text.text("Данные считаны успешно")
+                    time.sleep(0.05)
+                    status_text.text("Производим очистку данных")
+    #Обрабатываем информацию по параметрам объектов
+                    drop_row_index = df_stst.loc[df_stst['isTotal']==True].index
+                    progress_bar.progress(65)
+                    time.sleep(0.05)
+                    df_stst.drop(drop_row_index, inplace=True)
+                    progress_bar.progress(70)
+                    time.sleep(0.05)
+                    df_stst['start_move_time'] = df_stst['start_move_time'].fillna(df_stst['begin'])
+                    df_stst['stop_move_time'] = df_stst['stop_move_time'].fillna(df_stst['end'])
+                    progress_bar.progress(75)
+                    time.sleep(0.05)
+                    df_stst[['start_move_time', 'stop_move_time']].fillna(df_stst[['begin', 'end']], inplace=True)
+                    df_stst.fillna(0, inplace=True)
+                    progress_bar.progress(80)
+                    time.sleep(0.05)
+                    df_stst['begin'] = pd.to_datetime(df_stst['begin'], format='%Y-%m-%d %H:%M:%S')
+                    df_stst['end'] = pd.to_datetime(df_stst['end'], format='%Y-%m-%d %H:%M:%S')
+                    df_stst['start_move_time'] = pd.to_datetime(df_stst['start_move_time'], format='%Y-%m-%d %H:%M:%S')
+                    df_stst['stop_move_time'] = pd.to_datetime(df_stst['stop_move_time'], format='%Y-%m-%d %H:%M:%S')
+                    progress_bar.progress(85)
+                    time.sleep(0.05)
+                    df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
+#Считываем объекты из БД для подстановки ID
+                    df_objects = objects_return(comp_id)
+                    df1 = df_objects.drop(columns=['id_company', 'id_sys', 'id_model', 'id_type', 'reg_number', 'imei', 
+                                                   'status', 'last_date'])
+                    df2 = df1.merge(df_stst, left_on='object_name', right_on='obj_name', how='left')
+                    df2.drop(['id_object', 'object_name', 'obj_name', 'isTotal', 'name'], axis=1, inplace=True)
+                    df2['id_driver']=None
+                    df2.rename(columns={'id_objects': 'id_object'}, inplace=True)
+                    df2.drop(df2[df2['period_end'].isnull()].index, inplace=True)
+                    progress_bar.progress(88)
+                    time.sleep(0.05)
+                    st.write(" ### Объекты")
+                    df_objects
+                    st.write(" ### Параметры")
+                    df_stst
                     status_text.text("Записываем данные по объектам в БД")
                     time.sleep(0.05)
+                    progress_bar.progress(93)
                     if objects_param_insert(df2):
                         progress_bar.progress(100)
                         status_text.text("Импорт данных завершен")
