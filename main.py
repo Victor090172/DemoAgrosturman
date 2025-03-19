@@ -6,12 +6,32 @@ Created on Tue Feb 25 11:42:58 2025
 """
 import streamlit as st
 
+
+def nav_to(url: str):
+    nav_script = """
+        <meta http-equiv="refresh" content="0; url='%s'">
+    """ % (
+        url
+    )
+    st.write(nav_script, unsafe_allow_html=True)
+    st.stop()
+
+def itsm_page():
+    nav_to(url="https://datalens.yandex/c5n3piuo02xyz")
+
+def bi_page():
+    nav_to(url="https://datalens.yandex/hl5lwcqffoji3")
+
 st.logo("images/Агропилот.png")
 
 pages = {
     "Демостенд": [
-        st.Page("about.py", title="О проекте"),
+        st.Page("about.py", title="О проекте", icon= '🏠'),
         st.Page("1_Import_Data.py", title="Импорт данных"),
+    ],
+    "Аналитика": [
+        st.Page(bi_page, title ="Анализ данных Форт Монитор"),
+        st.Page(itsm_page, title ="Анализ данных ITSM365"),
     ],
     "Примеры": [
         st.Page("1_📈_Plot_Demo.py", title="Демо График"),
