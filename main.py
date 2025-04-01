@@ -27,7 +27,8 @@ st.logo("images/Агропилот.png")
 pages = {
     "Демостенд": [
         st.Page("about.py", title="О проекте", icon= '🏠'),
-        st.Page("1_Import_Data.py", title="Импорт данных"),
+        st.Page("1_Import_Data.py", title="Импорт объектов"),
+        st.Page("2_Import_Geozone.py", title="Импорт геозон"),
     ],
     "Аналитика": [
         st.Page(bi_page, title ="Анализ данных Форт Монитор"),

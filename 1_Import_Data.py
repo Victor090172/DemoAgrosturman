@@ -16,16 +16,6 @@ from dateutil.relativedelta import relativedelta
 #import altair as alt
 #from sqlalchemy import create_engine
 
-url = 'https://glonassagro.com/'
-username = 'rvl_testapi'
-password = 'rvltestapi2024'
-API = 'api/integration/v1/'
-method = 'connect'
-headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
-data = {'login' : username,
-        'password' : password,
-        'lang' : 'ru-ru',
-        'timezone' : '0'}
 
 #Возвращает число месяцев между датами
 @st.cache_data
@@ -136,6 +126,16 @@ def parce_fort_json2(data):
 # Считываем по API список компаний из Форта
 @st.cache_data
 def loadcompanylist():
+    url = 'https://glonassagro.com/'
+    username = 'rvl_testapi'
+    password = 'rvltestapi2024'
+    API = 'api/integration/v1/'
+    method = 'connect'
+    headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
+    data = {'login' : username,
+            'password' : password,
+            'lang' : 'ru-ru',
+            'timezone' : '0'}
     method = 'connect'
     headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
     client = httpx.Client()
@@ -152,6 +152,16 @@ def loadcompanylist():
 #Запрашиваем список объектов компании
 @st.cache_data
 def loadobjectlist(id_company):
+    url = 'https://glonassagro.com/'
+    username = 'rvl_testapi'
+    password = 'rvltestapi2024'
+    API = 'api/integration/v1/'
+    method = 'connect'
+    headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
+    data = {'login' : username,
+            'password' : password,
+            'lang' : 'ru-ru',
+            'timezone' : '0'}
     method = 'connect'
     headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
     client = httpx.Client()
@@ -169,6 +179,16 @@ def loadobjectlist(id_company):
 #Запрашиваем статистику по объектам за выбранный период
 @st.cache_data
 def loadobjectsstst(objects_list, start_date, stop_date):
+    url = 'https://glonassagro.com/'
+    username = 'rvl_testapi'
+    password = 'rvltestapi2024'
+    API = 'api/integration/v1/'
+    method = 'connect'
+    headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
+    data = {'login' : username,
+            'password' : password,
+            'lang' : 'ru-ru',
+            'timezone' : '0'}
     objects =";".join(str(element) for element in objects_list)
     method = 'connect'
     headers = {'Content-Type' : 'application/x-www-form-urlencoded'}
@@ -231,7 +251,7 @@ def company_exists(table_str):
 
 #Добавление компании в базу
 @st.cache_data
-def insert_company(short_name, long_name, address, id_system):
+def insert_company(short_name, long_name, address, id_system, id_insys):
     conn = psycopg2.connect(
                 dbname="postgres",
                 user="postgres",
@@ -242,7 +262,7 @@ def insert_company(short_name, long_name, address, id_system):
     exists = False
     try:
         cur = conn.cursor()
-        cur.execute("INSERT INTO company (short_name, full_name, address, sys_id) VALUES (%s, %s, %s, %s);", \
+        cur.execute("INSERT INTO company (short_name, full_name, address, sys_id, id_insys) VALUES (%s, %s, %s, %s);", \
                     (short_name, long_name, address, id_system))
         conn.commit()
         exists = True
@@ -384,8 +404,8 @@ def objects_param_insert(df):
     return flag    
     
 #Создаем боковое меню
-st.set_page_config(page_title="Импорт данных", page_icon="📈")
-st.markdown("# Импорт данных")
+st.set_page_config(page_title="Импорт объектов", page_icon="📈")
+st.markdown("# Импорт объектов и базовых параметров")
 st.sidebar.header("Импорт данных")
 
 
@@ -432,7 +452,7 @@ if syslist == 'Форт Монитор':
             progress_bar = st.sidebar.progress(0)
 #Вносим компанию в БД если ее еще там нет
             if comp_id == 0:
-                if insert_company(CompanyList, fullname, adrcompany, sysnum):
+                if insert_company(CompanyList, fullname, adrcompany, sysnum, id_company):
                     progress_bar.progress(5)
                     status_text.text("Записываем в базу параметры компании")
                     time.sleep(0.05)
