@@ -244,7 +244,7 @@ def zone_insert(df):
     return flag
 
 #Создаем боковое меню
-st.set_page_config(page_title="Импорт геозон", page_icon="📈")
+st.set_page_config(page_title="Импорт геозон", page_icon="🌾")
 st.markdown("# Импорт геозон и погоды")
 st.sidebar.header("Импорт геозон")
 dictsys = load_table_system()
