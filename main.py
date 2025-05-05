@@ -29,6 +29,7 @@ pages = {
         st.Page("about.py", title="О проекте", icon= '🏠'),
         st.Page("1_Import_Data.py", title="Импорт объектов", icon="🚛"),
         st.Page("2_Import_Geozone.py", title="Импорт геозон", icon='🗺️'),
+        st.Page("4_Import_zone_works.py", title="Импорт работ в геозонах", icon="🛠️"),
         st.Page("3_Read_Wather.py", title="Прогноз погоды", icon="⛅"),
     ],
     "Аналитика": [

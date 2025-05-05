@@ -13,6 +13,8 @@ import datetime
 import time
 from io import StringIO
 from dateutil.relativedelta import relativedelta
+import warnings
+warnings.filterwarnings('ignore')
 #import altair as alt
 #from sqlalchemy import create_engine
 
@@ -48,7 +50,7 @@ def return_type (obj_name):
     equipment = ['сеялка']
     res = 0
     obj_name = str.lower(obj_name)
-    new_s = re.sub(r"[_()]", " ", obj_name)
+    new_s = re.sub(r"[_()-]", " ", obj_name)
     if set(passenger) & set(new_s.split()):
         res = 1
     elif set(cargo) & set(new_s.split()):
@@ -320,7 +322,8 @@ def objects_insert(df):
                     reg_number, 
                     imei,
                     status, 
-                    last_date 
+                    last_date,
+                    oid
                     ) FROM STDIN WITH CSV""",
                 file=sio
             )
@@ -447,7 +450,7 @@ if syslist == 'Форт Монитор':
     now = datetime.datetime.now().date()
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
-        if st.sidebar.button("Импорт данных", type="primary",   disabled=True):
+        if st.sidebar.button("Импорт данных", type="primary",   disabled=False):
             status_text = st.sidebar.empty()
             progress_bar = st.sidebar.progress(0)
 #Вносим компанию в БД если ее еще там нет
@@ -488,7 +491,7 @@ if syslist == 'Форт Монитор':
 #                objects =";".join(str(element) for element in dict)
                 status_text.text("Проводим очистку данных")
                 time.sleep(0.05)
-                df_objects.rename(columns={'id':'id_company', 'name':'object_name','IMEI':'imei', 
+                df_objects.rename(columns={'id':'oid', 'name':'object_name','IMEI':'imei', 
                                            'lastData':'last_date', 'direction':'reg_number'}, inplace=True)
                 df_objects.drop(['groupId', 'icon', 'rotateIcon', 'iconHeight', 'iconWidth', 'lat', 'lon', 'move'], axis=1, inplace=True)            
     #Подставляем ID компании в БД
@@ -506,7 +509,7 @@ if syslist == 'Форт Монитор':
                 time.sleep(0.05)
 #Меняем порядок столбцов
                 df_objects = df_objects.reindex(columns=['id_company', 'id_sys', 'object_name', 'id_model', 'id_type',
-                                                         'reg_number', 'imei', 'status', 'last_date'])
+                                                         'reg_number', 'imei', 'status', 'last_date', 'oid'])
 #Записываем объекты в БД
                 status_text.text("Записываем объекты в БД")
                 time.sleep(0.05)
@@ -559,9 +562,9 @@ if syslist == 'Форт Монитор':
                     time.sleep(0.05)
                     df_stst.rename(columns={'oid':'id_object', 'begin': 'period_begin', 'end': 'period_end', }, inplace=True)
 #Считываем объекты из БД для подстановки ID
-                    df_objects = objects_return(comp_id)
-                    df1 = df_objects.drop(columns=['id_company', 'id_sys', 'id_model', 'id_type', 'reg_number', 'imei', 
-                                                   'status', 'last_date'])
+                    df1 = objects_return(comp_id)
+                    df1 = df1.drop(columns=['id_company', 'id_sys', 'id_model', 'id_type', 'reg_number', 'imei', 
+                               'status', 'last_date', 'oid'])
                     df2 = df1.merge(df_stst, left_on='object_name', right_on='obj_name', how='left')
                     df2.drop(['id_object', 'object_name', 'obj_name', 'isTotal', 'name'], axis=1, inplace=True)
                     df2['id_driver']=None
