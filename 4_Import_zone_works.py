@@ -15,6 +15,227 @@ from io import StringIO
 from dateutil.relativedelta import relativedelta
 import re
 
+#Вставка работ по объектам в бд
+@st.cache_data
+def objects_work_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY objects_work (
+                    id_company, 
+                    id_object, 
+                    start_period, 
+                    stop_period, 
+                    fuel, 
+                    moto_hours, 
+                    run_fuel,
+                    run_duration_hours, 
+                    run_stop_hours,
+                    run_distance,
+                    run_fuel_per100km,
+                    run_fuel_per1hour,
+                    run_avg_speed,
+                    run_square,
+                    run_square_percent,
+                    run_fuel_per1ha,
+                    work_fuel,
+                    work_duration,
+                    work_stop_hours,
+                    work_dist,
+                    work_fuel_per100km,
+                    work_fuel_per1hour,
+                    work_avg_speed,
+                    work_square,
+                    work_square_percent,
+                    work_fuel_per1ha
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag    
+
+
+#Вставка работ в геохонах в бд
+@st.cache_data
+def zone_work_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY objects_work_zone (
+                    id_company, 
+                    id_object, 
+                    id_trailer, 
+                    id_zone, 
+                    start_visit, 
+                    stop_visit, 
+                    all_fuel,
+                    fuel_on_hh, 
+                    duration_hours,
+                    stops_hours,
+                    move_hours,
+                    distance,
+                    fuel_per100km,
+                    fuel_per1hour,
+                    avg_speed,
+                    square,
+                    square_percent,
+                    fuel_per1ha,
+                    moto_hours,
+                    moto_hours_on_hh
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag    
+
+#Сохранение тревог
+@st.cache_data
+def alarm_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY objects_work_alarms (
+                    id_company, 
+                    id_object, 
+                    id_zone, 
+                    id_trailer,
+                    start_alarm,
+                    stop_alarm,
+                    max_speed,
+                    distance
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag    
+
+
+#Обновление списка орудий
+@st.cache_data
+def trailer_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY trailers (
+                    id_company, 
+                    sysid, 
+                    traler_name, 
+                    trailer_width
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag    
+
+
+#Обновление списка культур
+@st.cache_data
+def culture_insert(df):
+# Устанавливаем подключение к базе данных PostgreSQL
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password="AgroPilot2025",
+        host="82.142.178.174",
+        port='5432'
+    )    
+    flag = False
+    sio = StringIO()
+    df.to_csv(sio, index=None, header=None)
+    sio.seek(0)
+    try:
+        with conn.cursor() as c:
+            c.copy_expert(
+                sql="""
+                COPY culture (
+                    id_company, 
+                    culture_name, 
+                    year, 
+                    id_zone
+                    ) FROM STDIN WITH CSV""",
+                file=sio
+            )
+        conn.commit()
+        flag = True
+    except psycopg2.Error as e:
+        print (e)
+        conn.rollback()
+        flag = False
+    return flag    
+
+
 #Возвращает число месяцев между датами
 @st.cache_data
 def diff_month(d1, d2):
@@ -468,11 +689,19 @@ if syslist == 'Форт Монитор':
             status_text.text("Сохраняем работы объектов в БД")
             progress_bar.progress(15)
             time.sleep(0.1)
-            st.write(" ### Работа объектов")
-            df_object_work
+            if objects_work_insert(df_object_work):
+                status_text.text("Работы по объектам сохраненты в БД")
+                progress_bar.progress(20)
+                time.sleep(0.1)
+                st.write(" ### Работа объектов")
+                df_object_work
+            else:
+                status_text.text("Проблемы с сохранением работ")
+                progress_bar.progress(20)
+                time.sleep(0.1)
             #Орудия
             status_text.text("Обновляем список орудий")
-            progress_bar.progress(20)
+            progress_bar.progress(25)
             time.sleep(0.1)            
             df_trailer = trailers_return(comp_id)
             df_trailer_new = df_trailer.merge(df2, left_on='sysid', right_on='trailerId', how= 'right')
@@ -484,13 +713,21 @@ if syslist == 'Форт Монитор':
             status_text.text("Добавляем новые орудия в базу")
             progress_bar.progress(25)
             time.sleep(0.1)
-            st.write(" ### Список орудий")
-            df_trailer_new
+            if trailer_insert(df_trailer_new):
+                status_text.text("Орудия успешно добавлены")
+                progress_bar.progress(30)
+                time.sleep(0.1)
+                st.write(" ### Список орудий")
+                df_trailer_new
+            else:
+                status_text.text("Проблемы с добавлением орудий")
+                progress_bar.progress(30)
+                time.sleep(0.1)
             #Считывание орудий из базы для заполнения работы в геозонах
             df_trailer = trailers_return(comp_id)
             #Культуры
             status_text.text("Обновляем список культур")
-            progress_bar.progress(30)
+            progress_bar.progress(35)
             time.sleep(0.1)
             df_zone = zone_return(comp_id)
             df_zone = df_zone.reindex(columns=['id_agzone', 'zone_sysid'])
@@ -508,17 +745,25 @@ if syslist == 'Форт Монитор':
             df_culture_new = df_culture_new.reindex(columns=['id_company', 'culture_name', 'year', 'id_zone'])
             #Сохранение списка в БД
             status_text.text("Сохраняем культуры в базу данных")
-            progress_bar.progress(35)
-            time.sleep(0.1)       
-            st.write(" ### Список культур")
-            df_culture_new
-            status_text.text("Обрабатываем работу в геозонах и тревоги")
             progress_bar.progress(40)
+            time.sleep(0.1)
+            if culture_insert(df_culture_new):
+                status_text.text("Культуры сохранены в БД")
+                progress_bar.progress(45)
+                time.sleep(0.1)
+                st.write(" ### Список культур")
+                df_culture_new
+            else:
+                status_text.text("Проблемы с сохранением культур")
+                progress_bar.progress(45)
+                time.sleep(0.1)
+            status_text.text("Обрабатываем работу в геозонах и тревоги")
+            progress_bar.progress(50)
             time.sleep(0.1) 
             #Работы в геозонах и тревоги
             df_work_zone = df_object.merge(df4, left_on='oid', right_on='ID_Object', how= 'inner')
             df_alarms = df_object.merge(df5, left_on='oid', right_on='ID_Object', how= 'inner')
-            progress_bar.progress(45)
+            progress_bar.progress(55)
             time.sleep(0.1) 
             df_work_zone.drop(columns=['id_sys', 'object_name', 'id_model', 'id_type', 'reg_number', 'imei', 'status', 'last_date',
                                         'oid', 'ID_Object'], inplace=True)
@@ -528,14 +773,14 @@ if syslist == 'Форт Монитор':
             df_alarms = df_alarms.merge(df_zone, left_on = 'ID_Zone', right_on = 'zone_sysid', how = 'right').dropna(subset=['id_objects'])
             df_work_zone.drop(columns=['ID_Zone', 'zone_sysid'], inplace=True)
             df_alarms.drop(columns=['ID_Zone', 'zone_sysid'], inplace=True)
-            progress_bar.progress(50)
+            progress_bar.progress(60)
             time.sleep(0.1) 
             df_work_zone = df_work_zone.rename(columns={'id_agzone':'id_zone', 'id_objects': 'id_object'})
             df_alarms = df_alarms.rename(columns={'id_agzone':'id_zone', 'id_objects': 'id_object'})
             df_trailer.drop(columns=['id_company', 'traler_name', 'trailer_width'], inplace=True)
             df_work_zone = df_work_zone.merge(df_trailer, left_on = 'ID_Traler', right_on = 'sysid', how = 'left')
             df_alarms = df_alarms.merge(df_trailer, left_on = 'ID_Traler', right_on = 'sysid', how = 'left')
-            progress_bar.progress(55)
+            progress_bar.progress(65)
             time.sleep(0.1) 
             df_work_zone.drop(columns=['ID_Traler', 'sysid'], inplace=True)
             df_alarms.drop(columns=['ID_Traler', 'sysid'], inplace=True)
@@ -545,11 +790,34 @@ if syslist == 'Форт Монитор':
                                                         'moto_hours', 'moto_hours_on_hh'])
             df_alarms = df_alarms.reindex(columns=['id_company', 'id_object', 'id_zone', 'id_trailer', 'start_alarm', 'stop_alarm', 'max_speed',
                                                    'distance'])
-            status_text.text("Сохраняем работы и тревоги в БД")
-            progress_bar.progress(60)
+            df_work_zone= df_work_zone.fillna(0)
+            df_alarms=df_alarms.fillna(0)
+            df_work_zone = df_work_zone.astype({'id_company':int, 'id_object':int, 'id_trailer':int, 'id_zone':int})
+            df_alarms = df_alarms.astype({'id_company':int, 'id_object':int, 'id_trailer':int, 'id_zone':int})
+            status_text.text("Сохраняем работы в БД")
+            progress_bar.progress(70)
             time.sleep(0.1)
-            st.write(" ### Работы в геозонах")
-            df_work_zone
-            st.write(" ### Тревоги")
-            df_alarms          
-            progress_bar.progress(100)
+            if zone_work_insert(df_work_zone):
+                status_text.text("Работы в зонах сохранены")
+                progress_bar.progress(80)
+                time.sleep(0.1)
+                st.write(" ### Работы в геозонах")
+                df_work_zone
+            else:
+                status_text.text("Проблемы с сохранением работ в зонах")
+                progress_bar.progress(80)
+                time.sleep(0.1)
+            status_text.text("Сохраняем тревоги в БД")
+            progress_bar.progress(90)
+            time.sleep(0.1)
+            if alarm_insert(df_alarms):
+                status_text.text("Тревоги в зонах сохранены")
+                progress_bar.progress(100)
+                time.sleep(0.1)
+                st.write(" ### Тревоги")
+                df_alarms
+            else:
+                status_text.text("Проблемы при сохранении тревог")
+                progress_bar.progress(100)
+                time.sleep(0.1)
+            
