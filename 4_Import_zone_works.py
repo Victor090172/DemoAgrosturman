@@ -12,8 +12,9 @@ import datetime
 import time
 import json
 from io import StringIO
-from dateutil.relativedelta import relativedelta
 import re
+import warnings
+warnings.filterwarnings('ignore')
 
 #Вставка работ по объектам в бд
 @st.cache_data
@@ -709,7 +710,7 @@ if syslist == 'Форт Монитор':
             df_trailer_new['id_company'] = comp_id
             df_trailer_new = df_trailer_new.drop(columns=['id_trailer', 'sysid', 'traler_name', 'trailer_width'])\
                                            .rename(columns={'trailerId':'sysid', 'trailerName': 'traler_name', 'trailerWidth': 'trailer_width'})
-            #Запись орудий в базу
+             #Запись орудий в базу
             status_text.text("Добавляем новые орудия в базу")
             progress_bar.progress(25)
             time.sleep(0.1)
@@ -718,13 +719,16 @@ if syslist == 'Форт Монитор':
                 progress_bar.progress(30)
                 time.sleep(0.1)
                 st.write(" ### Список орудий")
-                df_trailer_new
+                df_trailer = pd.DataFrame()
+                while len(df_trailer) == 0:
+                    df_trailer = trailers_return(comp_id)
+                    time.sleep(5)
+                df_trailer
             else:
                 status_text.text("Проблемы с добавлением орудий")
                 progress_bar.progress(30)
                 time.sleep(0.1)
-            #Считывание орудий из базы для заполнения работы в геозонах
-            df_trailer = trailers_return(comp_id)
+            
             #Культуры
             status_text.text("Обновляем список культур")
             progress_bar.progress(35)
@@ -777,6 +781,8 @@ if syslist == 'Форт Монитор':
             time.sleep(0.1) 
             df_work_zone = df_work_zone.rename(columns={'id_agzone':'id_zone', 'id_objects': 'id_object'})
             df_alarms = df_alarms.rename(columns={'id_agzone':'id_zone', 'id_objects': 'id_object'})
+            #Считывание орудий из базы для заполнения работы в геозонах
+            #df_trailer = trailers_return(comp_id)
             df_trailer.drop(columns=['id_company', 'traler_name', 'trailer_width'], inplace=True)
             df_work_zone = df_work_zone.merge(df_trailer, left_on = 'ID_Traler', right_on = 'sysid', how = 'left')
             df_alarms = df_alarms.merge(df_trailer, left_on = 'ID_Traler', right_on = 'sysid', how = 'left')
@@ -788,6 +794,7 @@ if syslist == 'Форт Монитор':
                                                         'all_fuel', 'fuel_on_hh', 'duration_hours', 'stops_hours', 'move_hours', 'distance',
                                                         'fuel_per100km', 'fuel_per1hour', 'avg_speed', 'square', 'square_percent', 'fuel_per1ha',
                                                         'moto_hours', 'moto_hours_on_hh'])
+
             df_alarms = df_alarms.reindex(columns=['id_company', 'id_object', 'id_zone', 'id_trailer', 'start_alarm', 'stop_alarm', 'max_speed',
                                                    'distance'])
             df_work_zone= df_work_zone.fillna(0)
