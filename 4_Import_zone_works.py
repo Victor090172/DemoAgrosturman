@@ -15,6 +15,9 @@ from io import StringIO
 import re
 import warnings
 warnings.filterwarnings('ignore')
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 #Вставка работ по объектам в бд
 @st.cache_data
@@ -71,6 +74,7 @@ def objects_work_insert(df):
         print (e)
         conn.rollback()
         flag = False
+    conn.close()
     return flag    
 
 
@@ -123,6 +127,7 @@ def zone_work_insert(df):
         print (e)
         conn.rollback()
         flag = False
+    conn.close()
     return flag    
 
 #Сохранение тревог
@@ -162,6 +167,7 @@ def alarm_insert(df):
         print (e)
         conn.rollback()
         flag = False
+    conn.close()
     return flag    
 
 
@@ -175,7 +181,8 @@ def trailer_insert(df):
         password="AgroPilot2025",
         host="82.142.178.174",
         port='5432'
-    )    
+    ) 
+    conn.autocommit = False  # Убедитесь, что autocommit выключен
     flag = False
     sio = StringIO()
     df.to_csv(sio, index=None, header=None)
@@ -193,11 +200,15 @@ def trailer_insert(df):
                 file=sio
             )
         conn.commit()
+        logging.info("Данные успешно записаны")
         flag = True
     except psycopg2.Error as e:
-        print (e)
+        logging.error(f"Ошибка при записи: {e}")
+        print (f"Ошибка при записи: {e}")
         conn.rollback()
         flag = False
+    finally:
+        conn.close()
     return flag    
 
 
@@ -234,6 +245,7 @@ def culture_insert(df):
         print (e)
         conn.rollback()
         flag = False
+    conn.close()
     return flag    
 
 
@@ -292,22 +304,54 @@ def objects_return(id_company):
 @st.cache_data
 def trailers_return(id_company):
     conn = psycopg2.connect(
-                dbname="postgres",
+               dbname="postgres",
                 user="postgres",
                 password="AgroPilot2025",
                 host="82.142.178.174",
-                port="5432"
+                port="5432",
                 )
     id_company = str(id_company)
     try:
         cur = conn.cursor()
-        sql = "select * from trailers where id_company= " + id_company+";"
+        sql = f"SELECT * FROM trailers WHERE id_company = '{id_company}';"
         dat = pd.read_sql_query(sql, conn)
         cur.close()
         conn.close()
     except psycopg2.Error as e:
         print (e)
     return dat
+
+@st.cache_data
+def trailers_return1(id_company):
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password='AgroPilot2025',
+        host='82.142.178.174',
+        port='5432'
+    )
+    conn.autocommit = True
+    try:
+        # Вариант 1: Через cursor (без Pandas)
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM public.trailers WHERE id_company = %s;", (id_company,))
+        rows = cur.fetchall()
+        if rows:
+            cols = [desc[0] for desc in cur.description]
+            return pd.DataFrame(rows, columns=cols)
+        
+        # Вариант 2: Через Pandas (если пусто)
+        return pd.read_sql_query(
+            "SELECT * FROM public.trailers WHERE id_company = %s;",
+            conn,
+            params=(id_company,)
+        )
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
 
 #Возвращает список агрозон
 @st.cache_data
@@ -715,20 +759,31 @@ if syslist == 'Форт Монитор':
             progress_bar.progress(25)
             time.sleep(0.1)
             if trailer_insert(df_trailer_new):
+                time.sleep(2)  # Ждем 2 секунды для гарантии видимости данных
+                st.write(comp_id)
+                df_trailer = trailers_return(comp_id)
                 status_text.text("Орудия успешно добавлены")
                 progress_bar.progress(30)
                 time.sleep(0.1)
                 st.write(" ### Список орудий")
-                df_trailer = pd.DataFrame()
-                while len(df_trailer) == 0:
-                    df_trailer = trailers_return(comp_id)
-                    time.sleep(5)
+                max_attempts = 10
+                attempt = 0
+                while len(df_trailer) == 0 and attempt < max_attempts:
+                    logging.info(f"Попытка {attempt + 1} чтения данных...")
+                    df_trailer = trailers_return1(comp_id)
+                    if len(df_trailer) == 0:
+                        time.sleep(2)
+                    attempt += 1
                 df_trailer
             else:
                 status_text.text("Проблемы с добавлением орудий")
                 progress_bar.progress(30)
                 time.sleep(0.1)
-            
+                logging.error("Не удалось записать данные")
+            st.write(comp_id)
+            df_trailer1 = trailers_return1(comp_id)
+            st.write(" ### Список орудий")
+            df_trailer1
             #Культуры
             status_text.text("Обновляем список культур")
             progress_bar.progress(35)
