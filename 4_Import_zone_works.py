@@ -697,7 +697,7 @@ if syslist == 'Форт Монитор':
     now = datetime.datetime.now().date()
     if d != None:
         st.write("Импорт данных в систему аналитики будет произведен начиная с ", d, " по ", now)
-        if st.sidebar.button("Импорт данных", type="primary",   disabled=False):
+        if st.sidebar.button("Импорт данных", type="primary",   disabled=True):
             status_text = st.sidebar.empty()
             progress_bar = st.sidebar.progress(0)
             status_text.text("Читаем список объектов")
